@@ -16,7 +16,8 @@ from quest.utils.logger import Logger
 import gc
 
 OmegaConf.register_new_resolver("eval", eval, replace=True)
-
+import sys
+sys.path.append("/home/mrl/Documents/Projects/QueST/quest")
 
 @hydra.main(config_path="config", version_base=None)
 def main(cfg):
@@ -37,13 +38,13 @@ def main(cfg):
 
     scaler = torch.cuda.amp.GradScaler(enabled=train_cfg.use_amp)
 
-    experiment_dir, experiment_name = utils.get_experiment_dir(cfg)
+    experiment_dir, experiment_name = utils.get_experiment_dir(cfg, allow_overlap=False)
     os.makedirs(experiment_dir, exist_ok=True)
 
     start_epoch, steps, wandb_id = 0, 0, None
     if train_cfg.auto_continue:
         checkpoint_path = experiment_dir.rsplit('/', 1)[0] + f'/stage_{cfg.stage - 1}'
-        if 'libero' in checkpoint_path and cfg.stage == 2:
+        if 'libero' in checkpoint_path and cfg.stage == 3:
             checkpoint_path = checkpoint_path.replace('10', '90') # since we want to initialize the model from the libero_90 benchmark
     elif train_cfg.resume and len(os.listdir(experiment_dir)) > 0: 
         checkpoint_path = experiment_dir

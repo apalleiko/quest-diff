@@ -67,7 +67,7 @@ class DiffusionModel(nn.Module):
         self.skill_block_size = skill_block_size
         self.diffusion_inf_steps = diffusion_inf_steps
 
-    def forward(self, cond, actions):
+    def forward(self, cond, actions, prior_actions=None):
         timesteps = torch.randint(
             0, self.noise_scheduler.config.num_train_timesteps, 
             (cond.shape[0],), device=self.device
@@ -75,6 +75,9 @@ class DiffusionModel(nn.Module):
         noise = torch.randn(actions.shape, device=self.device)
         # add noise to the clean actions according to the noise magnitude at each diffusion iteration
         # (this is the forward diffusion process)
+        if prior_actions is not None:
+            actions = actions - prior_actions
+
         noisy_actions = self.noise_scheduler.add_noise(
             actions, noise, timesteps)
         # predict the noise residual
@@ -83,15 +86,24 @@ class DiffusionModel(nn.Module):
         loss = F.mse_loss(noise_pred, noise)
         return loss
 
-    def get_action(self, cond):
+    def get_action(self, cond, actions=None, inf_steps=None, step_start=torch.inf):
         nets = self.net
-        noisy_action = torch.randn(
-            (cond.shape[0], self.skill_block_size, self.action_dim), device=self.device)
-        naction = noisy_action
+        if actions is None:
+            noisy_action = torch.randn(
+                (cond.shape[0], self.skill_block_size, self.action_dim), device=self.device)
+            naction = noisy_action
+        else:
+            naction = actions
+
         # init scheduler
-        self.noise_scheduler.set_timesteps(self.diffusion_inf_steps)
+        if inf_steps is None:
+            self.noise_scheduler.set_timesteps(self.diffusion_inf_steps)
+        else:
+            self.noise_scheduler.set_timesteps(inf_steps)
 
         for k in self.noise_scheduler.timesteps:
+            if k > step_start:
+                continue
             # predict noise
             noise_pred = nets(
                 sample=naction, 

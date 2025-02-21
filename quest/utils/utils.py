@@ -74,7 +74,7 @@ def soft_load_state_dict(model, loaded_state_dict):
     new_state_dict = {}
 
     for k in current_model_dict.keys():
-        if k in loaded_state_dict:
+        if k in loaded_state_dict: # and 'diffuser' not in k and 'adj' not in k:
             v = loaded_state_dict[k]
             if not hasattr(v, 'size') or v.size() == current_model_dict[k].size():
                 new_state_dict[k] = v
